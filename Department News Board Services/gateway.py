@@ -139,7 +139,7 @@ class NewsBoardGatewayService:
             if news_availability['result'] != 'Found':
                 return "Not Found"
             
-            timestamp = news_availability['response_data']['data']['created_on']
+            timestamp = news_availability['data']['date_created']
             date = datetime.datetime.strptime(timestamp.split('T')[0], '%Y-%m-%d')
             current_date = datetime.datetime.date(datetime.datetime.now())
             
@@ -191,7 +191,7 @@ class NewsBoardGatewayService:
             if news_availability['result'] != 'Found':
                 return "Not Found"
             
-            timestamp = news_availability['response_data']['data']['created_on']
+            timestamp = news_availability['data']['date_created']
             date = datetime.datetime.strptime(timestamp.split('T')[0], '%Y-%m-%d')
             current_date = datetime.datetime.date(datetime.datetime.now())
             
@@ -208,7 +208,7 @@ class NewsBoardGatewayService:
     def get_all_news(self, request):
         get_all_news = self.news_rpc.get_all_news()
         
-        return get_all_news
+        return json.dumps(get_all_news)
     
     
     @http('GET', '/news/<int:news_id>')
@@ -219,17 +219,17 @@ class NewsBoardGatewayService:
         
         get_news_by_id = self.news_rpc.get_news_by_id(news_id)
         
-        return get_news_by_id
+        return json.dumps(get_news_by_id)
     
     
-    @http('GET', '/api/news/file/<int:file_id>')
+    @http('GET', '/news/file/<int:file_id>')
     def download_file(self, request, file_id):
         file = self.news_rpc.get_file(file_id)
         
-        if int(file['response_code']) != 200:
-            return int(file['response_code']), json.dumps(file['response_data'])
+        if file['result'] != 'Found':
+            return "Not Found"
         
-        filename = file['response_data']['data']['filename']
+        filename = file['data']['name']
         response = Response(open(UPLOAD_FOLDER + '/' + filename, 'rb').read())
         file_type = filename.split('.')[-1]
         

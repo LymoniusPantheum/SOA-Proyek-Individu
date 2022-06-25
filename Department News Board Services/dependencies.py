@@ -113,6 +113,10 @@ class DatabaseWrapper:
                     'date_created': result['date_created']
                 }
             }
+        else:
+            response ={
+                'result' : 'Not Found'
+            }
         
         cursor.close()
         return response
@@ -133,7 +137,7 @@ class DatabaseWrapper:
         cursor = self.connection.cursor(dictionary=True)
         
         for i in range(len(arr_filename)):
-            sql = 'INSERT INTO news_file(filename, status, id_news) VALUES (%s, %s, %s)'
+            sql = 'INSERT INTO news_file(name, status, id_news) VALUES (%s, %s, %s)'
             cursor.execute(sql, [str(arr_filename[i]), int(0), int(id_news)])
         
         self.connection.commit()
@@ -158,18 +162,15 @@ class DatabaseWrapper:
     def delete_news_file(self, id_news, file_id):
         cursor = self.connection.cursor(dictionary=True)
         
-        sql = 'SELECT COUNT(*) AS x FROM `news_files` WHERE id_news = %s AND id = %s'
+        sql = 'SELECT COUNT(*) AS x FROM news_file WHERE id_news = %s AND id = %s'
         cursor.execute(sql, [int(id_news), int(file_id)])
         result = cursor.fetchone()
         
         if result['x'] <= 0:
             return {
-                'response_code': 404,
-                'response_data': {
-                    "status": "error",
-                    "message": "File not found"
-                }
+                'result' : 'Not Found'
             }
+            
         
         sql = 'UPDATE news_file SET status=%s WHERE id = %s AND id_news = %s'
         cursor.execute(sql, [int(1), int(file_id), int(id_news)])
@@ -214,17 +215,17 @@ class DatabaseWrapper:
         response = None
         files = []
         
-        sql = 'SELECT * FROM`news WHERE status = %s AND id = %s'
+        sql = 'SELECT * FROM news WHERE status = %s AND id = %s'
         cursor.execute(sql, [int(0), int(id_news)])
         result = cursor.fetchone()
         
-        sql_get_news_files = 'SELECT * FROM news_file WHERE id_news = %s AND status = %s'
-        cursor.execute(sql_get_news_files, [int(result['id']), int(0)])
+        sql_news = 'SELECT * FROM news_file WHERE id_news = %s AND status = %s'
+        cursor.execute(sql_news, [int(result['id']), int(0)])
         
         for file in cursor.fetchall():
             files.append({
                 'id': file['id'],
-                'filename': file['filename']
+                'name': file['name']
             })
         
         response = {
@@ -235,40 +236,27 @@ class DatabaseWrapper:
         }
         
         cursor.close()
-        return {
-            'response_code': 200,
-            'response_data': {
-                "status": "success",
-                "data": response
-            }
-        }
+        return response
     
     
     def get_file(self, file_id):
         cursor = self.connection.cursor(dictionary=True)
         response = None
         
-        sql = 'SELECT COUNT(*) AS x, news_files.* FROM `news_files` WHERE id = %s AND deleted = 0'
+        sql = 'SELECT COUNT(*) AS x, news_file.* FROM news_file WHERE id = %s AND status = 0'
         cursor.execute(sql, [int(file_id)])
         result = cursor.fetchone()
         
         if result['x'] <= 0:
             response = {
-                'response_code': 404,
-                'response_data': {
-                    "status": "error",
-                    "message": "File not found"
-                }
+                'result' : 'Not Found'
             }
         else:
             response = {
-                'response_code': 200,
-                'response_data': {
-                    "status": "success",
-                    "data": {
-                        'id': result['id'],
-                        'filename': result['filename']
-                    }
+                'result': 'Found',
+                "data": {
+                    'id': result['id'],
+                    'name': result['name']
                 }
             }
         
