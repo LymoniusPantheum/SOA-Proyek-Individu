@@ -7,11 +7,11 @@ class session:
     database = dependencies.Database()
 
     @rpc
-    def download(self, file):
-        result = self.database.download(file)
+    def download(self, file, id):
+        result = self.database.download(file, id)
         return result
 
     @rpc
-    def upload(self, file):
-        result = self.database.upload(file)
+    def upload(self, file, id):
+        result = self.database.upload(file, id)
         return result

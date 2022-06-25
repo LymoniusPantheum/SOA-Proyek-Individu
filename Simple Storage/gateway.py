@@ -3,9 +3,35 @@ import json
 from nameko.web.handlers import http
 from werkzeug.wrappers import Response
 import uuid
+import os
 
+from flask import Flask, send_from_directory
+from werkzeug.utils import secure_filename
 from nameko.rpc import RpcProxy
 from nameko.web.handlers import http
+
+UPLOAD_FOLDER = 'data/news'
+ALLOWED_EXTENSIONS = {'txt', 'pdf', 'png', 'jpg', 'jpeg', 'gif'}
+EXTENSION_HEADER = {
+    'txt': 'text/plain',
+    'pdf': 'application/pdf',
+    'png': 'image/png',
+    'jpg': 'image/jpeg',
+    'jpeg': 'image/jpeg',
+    'gif': 'image/gif'
+}
+
+app = Flask(__name__)
+app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+
+if not os.path.exists('data'):
+    os.mkdir('data')
+if not os.path.exists(UPLOAD_FOLDER):
+    os.mkdir(UPLOAD_FOLDER)
+
+
+def allowed_file(filename):
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 
 class Gateway:
@@ -60,12 +86,23 @@ class Gateway:
             return "Not even login"
 
     
-    @http('GET', '/download')
-    def download(self, request):
+    @http('GET', '/download/<int:id_file>')
+    def download(self, request, id_file):
         cookies = request.cookies
         if cookies and self.session_rpc.redis_check(cookies['SESSID']) != None:
-            result = self.storage_rpc.download()
-            return json.dumps(result)
+            result = self.storage_rpc.download(id_file, cookies['ID'])
+            
+            if result['result'] != 'Found':
+                return "Not Found"
+            
+            filename = result['data']['name']
+            response = Response(open(UPLOAD_FOLDER + '/' + filename, 'rb').read())
+            file_type = filename.split('.')[-1]
+            
+            response.headers['Content-Type'] = EXTENSION_HEADER[file_type]
+            response.headers['Content-Disposition'] = 'attachment; filename={}'.format(filename)
+        
+            return response
         else:
             return "Not even login"
     
@@ -73,7 +110,22 @@ class Gateway:
     def upload(self, request):
         cookies = request.cookies
         if cookies and self.session_rpc.redis_check(cookies['SESSID']) != None:
-            result = self.storage_rpc.upload(request)
-            return json.dumps(result)
+            if 'file' not in request.files:
+                return "No File"
+            files = request.files.getlist('file')
+            for file in files:
+                if file.filename == '':
+                    return "No File"
+            arrFilename = []
+            for file in files:
+                if file and allowed_file(file.filename):
+                    filename = secure_filename(file.filename)
+                    file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
+                    arrFilename.append(filename)
+                else:
+                    return "Unsupported File Type"
+            
+            add_news = self.storage_rpc.upload(arrFilename, cookies['ID'])
+            return add_news
         else:
             return "Not even login"

@@ -37,3 +37,11 @@ class session:
     def destroy_session(self, id):
         self.database.set_session(id)
         return
+
+    @rpc
+    def redis_check(self, id):
+        result = self.database.get_session(id)
+        if result != None:
+            return True
+        else:
+            return False

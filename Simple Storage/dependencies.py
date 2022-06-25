@@ -6,7 +6,7 @@ import redis
 
 import mysql.connector
 from mysql.connector import Error
-from mysql.connector import pooling
+import mysql.connector.pooling
 
 class DatabaseWrapper:
 
@@ -19,8 +19,8 @@ class DatabaseWrapper:
     
     def generate_session_id(self):
         key = str(uuid.uuid4())
-        # while self.redis.exist(key):
-            # key = str(uuid.uuid4())
+        while self.redis.exists(key):
+            key = str(uuid.uuid4())
         return key
 
     def set_session(self, user_data):
@@ -79,12 +79,39 @@ class DatabaseWrapper:
         else:
             return
 
-    def upload(self, file):
+    def upload(self, file, id_user):
         cursor = self.connection.cursor(dictionary=True)
+        
+        for i in range(len(file)):
+            sql = 'INSERT INTO file(name, id_user) VALUES (%s, %s)'
+            cursor.execute(sql, [str(file[i]), id_user])
+            self.connection.commit()
+        cursor.close()
+        return "File uploaded"
     
-    def download(self):
+    def download(self, id_file, id_user):
         cursor = self.connection.cursor(dictionary=True)
-        result = []
+        response = None
+        
+        sql = 'SELECT COUNT(*) AS x, file.* FROM file WHERE id = %s AND id_user = %s'
+        cursor.execute(sql, [int(id_file), int(id_user)])
+        result = cursor.fetchone()
+        
+        if result['x'] <= 0:
+            response = {
+                'result' : 'Not Found'
+            }
+        else:
+            response = {
+                'result': 'Found',
+                "data": {
+                    'id': result['id'],
+                    'name': result['name']
+                }
+            }
+        
+        cursor.close()
+        return response
 
 
 class Database(DependencyProvider):
